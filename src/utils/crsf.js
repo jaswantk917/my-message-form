@@ -1,7 +1,8 @@
 // utils/csrf.js
+import { baseUrl } from "../config.js";
 const fetchCsrfToken = async () => {
   try {
-    const response = await fetch("http://127.0.0.1:8000/messages/submit-message/");
+    const response = await fetch(`${baseUrl}/messages/submit-message/`);
     const data = await response.json();
     return data.csrfToken;
   } catch (error) {

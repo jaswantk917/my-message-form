@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { Container, Row, Col, Form, Button, Navbar, Nav } from "react-bootstrap";
 import fetchCsrfToken from "./utils/crsf";
 import { useEffect } from "react";
+import { getCookie, setCookie } from "./utils/cookies";
+import { v4 as uuidv4 } from "uuid";
+import { baseUrl } from "./config.js";
 
 /**
  * Represents a form for sending messages.
@@ -14,6 +17,21 @@ function MessageForm() {
   const [isPublic, setIsPublic] = useState(false);
   const [error, setError] = useState(null);
   const [comments, setComments] = useState([]);
+  const [user, setUser] = useState(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
+
+  useEffect(() => {
+    //fetch from cookie
+    const user = getCookie("user_uuid");
+    //if user is null then setCookie random uuid
+    if (user === null) {
+      const uuid = uuidv4();
+      setCookie("user_uuid", uuid, 365);
+      setUser(uuid);
+    }
+    else setUser(user);
+  }
+  , [user]);
 
   useEffect(() => {
     if (error) {
@@ -32,7 +50,7 @@ function MessageForm() {
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/messages/get-all-messages/");
+        const response = await fetch(`${baseUrl}/messages/get-all-messages/`);
         const data = await response.json();
         setComments(data.comments);
        //print type of data
@@ -48,10 +66,12 @@ function MessageForm() {
 
 
   const handleSubmit = async (event) => {
+    setSendingMessage(true);
     event.preventDefault();
     setError(null); 
     if (message.trim() === "") {
       setError("Message cannot be empty");
+      setSendingMessage(false);
       return;
     }    
     const csrfToken = await fetchCsrfToken();
@@ -62,7 +82,7 @@ function MessageForm() {
     if (isPublic) {
       try {
         const response = await fetch(
-          "http://127.0.0.1:8000/messages/submit-message/",
+          `${baseUrl}/messages/submit-message/`,
           {
             method: "POST",
             headers: {
@@ -73,11 +93,15 @@ function MessageForm() {
               message: messageData,
               contactInfo: contactData,
               isPublic: isPublicData,
+              user_uuid: user,
             }),
           },
         );
         if (response.ok) {
           console.log("Message sent successfully!");
+          setMessage("");
+          
+          
         } else {
           console.error("Error sending message:", response.status);
         }
@@ -87,7 +111,7 @@ function MessageForm() {
     } else {
       try {
         const response = await fetch(
-          "http://127.0.0.1:8000/messages/submit-message/",
+          `${baseUrl}/messages/submit-message/`,
           {
             method: "POST",
             headers: {
@@ -103,6 +127,9 @@ function MessageForm() {
         );
         if (response.ok) {
           console.log("Message sent successfully!");
+          setMessage("");
+          setContactInfo("");
+
         } else {
           setError("Error sending message");
           console.error("Error sending message:", response.status);
@@ -113,19 +140,28 @@ function MessageForm() {
         console.error("Error sending message1:", error);
       }
     }
+    window.location.reload();
+    setSendingMessage(false);
   };
 
+  const handleLogout = async () => {
+    setCookie("user_uuid", "", 0);
+    setUser(null);
+  };
+
+
   return (
-    <div><Navbar expand="lg" >
-        
-    <Container>
-      <Navbar.Brand href="/">
-        Leave a message/complaint for me.
-      </Navbar.Brand>
-      <Nav>{}</Nav>
-      <Nav>logout</Nav>
-    </Container>
-  </Navbar>
+    <div>
+      <Navbar expand ="lg" sticky="top" expanded>
+ <Container><Navbar.Brand href="/">Leave a message/complaint for me.</Navbar.Brand>
+
+  <Nav className="mr-auto">
+    <Nav.Item>User: {user}</Nav.Item>
+  </Nav>
+  <Nav>
+    <Nav.Link onClick={handleLogout}>Reset user</Nav.Link>
+  </Nav></Container>
+</Navbar>
   <Container>
       <Row>
         {error && <p className="text-danger">{error}</p>}
@@ -165,21 +201,19 @@ function MessageForm() {
             </Form.Group>
 
             <br />
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" disabled={sendingMessage === true}>
               Send Message
             </Button>
           </Form>
         </Col>
         <Col xs={12} md={6}>
-          {/* Public comments go here */}
           {Array.isArray(comments) ? (
   comments.map((comment, index) => (
     <div key={index}>
       
       
       <h5>{comment.content}</h5>
-      {/*add comment by userid and make the font smalle*/}
-      <p style={{ fontSize: "smaller" }}>by: {comment.user_uuid}, at: {comment.created_at}</p>
+      <p style={{ fontSize: "smaller" }}>by: {comment.user_uuid===user? 'You': comment.user_uuid}, at: {comment.created_at}</p>
 
     </div>
   ))
