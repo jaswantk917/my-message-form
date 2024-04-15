@@ -100,8 +100,6 @@ function MessageForm() {
         if (response.ok) {
           console.log("Message sent successfully!");
           setMessage("");
-          
-          
         } else {
           console.error("Error sending message:", response.status);
         }
@@ -126,9 +124,17 @@ function MessageForm() {
           },
         );
         if (response.ok) {
-          console.log("Message sent successfully!");
-          setMessage("");
-          setContactInfo("");
+          const jsonResponse = await response.json();
+          if(jsonResponse.success){
+            console.log("Message sent successfully!");
+            setMessage("");
+            setContactInfo("");
+            window.location.reload();
+          } else {
+            setError(jsonResponse.error);
+            console.error("Error sending message:", jsonResponse.error);
+          }
+          
 
         } else {
           setError("Error sending message");
@@ -140,7 +146,7 @@ function MessageForm() {
         console.error("Error sending message1:", error);
       }
     }
-    window.location.reload();
+    
     setSendingMessage(false);
   };
 
